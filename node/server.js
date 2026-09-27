@@ -65,6 +65,15 @@ try {
   console.log('RAINHA.jpg nao encontrada — usando emoji 🪙.');
 }
 
+// Foto do simbolo Estrela (giros gratis). Se faltar, volta ao emoji.
+let ANAO_PHOTO = null;
+try {
+  ANAO_PHOTO = fs.readFileSync(path.join(__dirname, 'BOLSONARO ANAO.jpg'));
+  console.log('Foto da Estrela carregada: BOLSONARO ANAO.jpg (' + ANAO_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('BOLSONARO ANAO.jpg nao encontrada — usando emoji ⭐.');
+}
+
 // Som de vitoria. Toca no navegador quando o jogador ganha.
 let WIN_SOUND = null;
 try {
@@ -262,6 +271,8 @@ const DOM_IMG = DOM_PHOTO ? '<img src="/domingo.jpg" class="timg" alt="Fogos">' 
 const DOM_IMG_SM = DOM_PHOTO ? '<img src="/domingo.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Fogos">' : '🧨';
 const RAINHA_IMG = RAINHA_PHOTO ? '<img src="/rainha.jpg" class="timg" alt="Moedas">' : '🪙';
 const RAINHA_IMG_SM = RAINHA_PHOTO ? '<img src="/rainha.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Moedas">' : '🪙';
+const ANAO_IMG = ANAO_PHOTO ? '<img src="/anao.jpg" class="timg" alt="Estrela">' : '⭐';
+const ANAO_IMG_SM = ANAO_PHOTO ? '<img src="/anao.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Estrela">' : '⭐';
 
 const PAY_ROWS = SYMBOLS.filter((s) => !s.scatter)
   .map((s) => `<div><span>${s.name === 'Tigre' ? TIGER_IMG_SM : s.name === 'Envelope' ? ARMA_IMG_SM : s.name === 'Lanterna' ? CORACAO_IMG_SM : s.name === 'Laranja' ? MASC_IMG_SM : s.name === 'Fogos' ? DOM_IMG_SM : s.name === 'Moedas' ? RAINHA_IMG_SM : s.icon} ${s.name} ×3</span><strong>${s.pay}x</strong></div>`).join('');
@@ -288,6 +299,9 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 .cell.win{background:radial-gradient(circle,#fffbe0,#ffd968);outline:3px solid #fff200;box-shadow:0 0 14px #fff200}
 .cell.blur{filter:blur(1px)}
 .timg{position:absolute;top:8%;left:8%;width:84%;height:84%;object-fit:cover;border-radius:10px}
+#bgvideo{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.panel{position:relative;z-index:1;background:linear-gradient(180deg,rgba(150,18,26,.82),rgba(45,4,8,.9)) !important}
+#start{background:radial-gradient(circle at 50% 30%,rgba(194,37,48,.88) 0%,rgba(40,3,6,.94) 100%) !important}
 .stat{display:flex;gap:10px;margin-top:12px}
 .box{min-width:150px;text-align:center;padding:8px 18px;border-radius:12px;border:2px solid #f5c445;background:rgba(0,0,0,.45)}
 .box small{font-size:.62rem;letter-spacing:.18em;color:#e8b96a}
@@ -320,11 +334,22 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 </style>
 </head>
 <body>
+<video id="bgvideo" src="/fundo.mp4" autoplay muted loop playsinline></video>
 <div class="panel">
 <audio id="winSound" src="/win.mp3" preload="auto"></audio>
 <audio id="endSound" src="/end.mp3" preload="auto"></audio>
 <audio id="poetaSound" src="/poeta.mp3" preload="auto"></audio>
 <audio id="risadaSound" src="/risada.mp3" preload="auto"></audio>
+<audio id="bgMusic" src="/win.mp3" loop preload="auto"></audio>
+<button id="mutebtn" style="position:fixed;top:12px;right:12px;z-index:70;width:44px;height:44px;border-radius:50%;border:2px solid #f5c445;background:rgba(0,0,0,.6);font-size:20px;cursor:pointer">🔊</button>
+<div id="start" style="position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,#c22530 0%,#4a060c 100%)">
+<div style="text-align:center;padding:20px">
+<img src="/tigre.png" alt="Tigre" style="width:130px;height:130px;object-fit:cover;border-radius:50%;border:4px solid #ffe9a8;box-shadow:0 0 30px rgba(245,200,69,.8)">
+<div style="font-size:2.4rem;font-weight:900;color:#ffd968;margin-top:12px;text-shadow:0 2px 0 #7a4a00,0 0 22px rgba(255,200,60,.55)">BOLSOLUCKS</div>
+<div style="color:#e8b96a;font-size:.85rem;margin:6px 0 20px">saldo demo 50 · giros grátis · jackpot · bônus</div>
+<button id="playbtn" style="min-width:220px;min-height:60px;border-radius:999px;border:4px solid #ffe9a8;background:linear-gradient(180deg,#ffcf4d,#e08a00);color:#5c0a10;font-weight:900;font-size:1.4rem;cursor:pointer;box-shadow:0 6px 0 #6b4500,0 0 26px rgba(245,200,69,.6)">▶ JOGAR</button>
+</div>
+</div>
 <div class="orn">✦ ✦ ✦</div>
 <div class="mascot"><img src="/tigre.png" alt="Tigre" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
 <h1>BOLSOLUCKS</h1>
@@ -337,12 +362,13 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 <div class="box"><small>GANHO</small><br><b id="win">0.00</b></div>
 </div>
 <div id="msg">Aperte GIRAR e boa sorte!</div>
+<button id="reloadBtn" style="display:none;margin-top:10px;padding:12px 30px;border-radius:999px;border:2px solid #7CFC00;background:rgba(0,0,0,.5);color:#7CFC00;font-weight:900;font-size:1rem;cursor:pointer">＋ RECARREGAR 50 DEMO</button>
 <div class="controls">
 <div class="ctl"><small>APOSTA</small><div class="val"><button class="rbtn" id="minus">−</button><span id="bet">10</span><button class="rbtn" id="plus">+</button></div></div>
 <button id="spin"><img src="/tigre.png" alt="Tigre" style="width:44px;height:44px;object-fit:cover;border-radius:50%;vertical-align:middle"><br>GIRAR</button>
 <div class="ctl"><small>RODADAS</small><div class="val" id="rounds">0</div></div>
 </div>
-<div class="pay">${PAY_ROWS}<div><span>⭐ Estrela ×3 em qualquer lugar</span><strong>+10 grátis</strong></div><div><span>🐯 Tigre ×3 em qualquer lugar</span><strong>bônus</strong></div><div style="margin-top:6px;color:#ffd968;font-size:.78rem">Grade cheia igual: prêmio <strong>×10</strong> + fatia do jackpot (tigre cheia = tudo) · 5 linhas</div></div>
+<div class="pay">${PAY_ROWS}<div><span>${ANAO_IMG_SM} Estrela ×3 em qualquer lugar</span><strong>+10 grátis</strong></div><div><span>${TIGER_IMG_SM} Tigre ×3 em qualquer lugar</span><strong>bônus</strong></div><div style="margin-top:6px;color:#ffd968;font-size:.78rem">Grade cheia igual: prêmio <strong>×10</strong> + fatia do jackpot (tigre cheia = tudo) · 5 linhas</div></div>
 <div class="hist"><table><tr><th>#</th><th>APOSTA</th><th>GANHO</th><th>INFO</th></tr><tbody id="hist"></tbody></table></div>
 <div class="back">Saldo ficticio · jogo proprio, sem relacao com PG Soft · <b>node server.js</b></div>
 </div>
@@ -362,6 +388,8 @@ const DOMI = ${JSON.stringify(DOM_IMG)};
 ICONS[2] = DOMI; // simbolo Fogos vira a foto (tamanho da grade)
 const RAI = ${JSON.stringify(RAINHA_IMG)};
 ICONS[4] = RAI; // simbolo Moedas vira a foto (tamanho da grade)
+const ANA = ${JSON.stringify(ANAO_IMG)};
+ICONS[6] = ANA; // simbolo Estrela vira a foto (tamanho da grade)
 function sym(i) { return ICONS[i]; }
 const BETS = ${JSON.stringify(BETS)};
 let betIdx = 3, spinning = false, rounds = 0;
@@ -375,6 +403,22 @@ function coins(n) { document.querySelectorAll('.coin').forEach((e) => e.remove()
 function stopCoins() { document.querySelectorAll('.coin').forEach((e) => e.remove()); }
 function fsbar(n) { const b = document.getElementById('fsbar'); if (n > 0) { b.style.display = 'block'; document.getElementById('fsn').textContent = n; } else b.style.display = 'none'; }
 async function hist() { try { const r = await fetch('/api/history'); const j = await r.json(); document.getElementById('hist').innerHTML = j.map((h, i) => '<tr><td>' + (rounds - i) + '</td><td>' + (h.free ? 'GRÁTIS' : h.bet) + '</td><td>' + h.win.toFixed(2) + '</td><td>' + [h.jackpot > 0 ? '💰' : '', h.fsWon > 0 ? '🎁+' + h.fsWon : '', h.bonus ? '🧧' : '', h.x10 ? 'x10' : ''].filter(Boolean).join(' ') + '</td></tr>').join(''); } catch (e) {} }
+let started = false;
+function sfx(id) { try { const bg = document.getElementById('bgMusic'); bg.pause(); const a = document.getElementById(id); a.onended = () => { try { if (started && !bg.muted) bg.play().catch(() => {}); } catch (e) {} }; a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} }
+document.getElementById('playbtn').onclick = async () => {
+  document.getElementById('start').style.display = 'none';
+  try { await fetch('/api/reset', { method: 'POST' }); } catch (e) {}
+  try { const r = await fetch('/api/state'); const j = await r.json(); document.getElementById('bal').textContent = j.balance.toFixed(2); document.getElementById('jack').textContent = j.jackpot.toFixed(2); fsbar(j.freeSpins); } catch (e) {}
+  hist();
+  updateReload();
+  started = true;
+  try { const bg = document.getElementById('bgMusic'); bg.volume = 0.35; bg.muted = false; document.getElementById('mutebtn').textContent = '🔊'; await bg.play(); } catch (e) {}
+};
+document.getElementById('mutebtn').onclick = () => { const bg = document.getElementById('bgMusic'); bg.muted = !bg.muted; document.getElementById('mutebtn').textContent = bg.muted ? '🔇' : '🔊'; if (!bg.muted && started) bg.play().catch(() => {}); };
+function updateReload() { try { const b = parseFloat(document.getElementById('bal').textContent) || 0; document.getElementById('reloadBtn').style.display = b < 1 ? 'block' : 'none'; } catch (e) {} }
+document.getElementById('reloadBtn').onclick = async () => {
+  try { const r = await fetch('/api/reload', { method: 'POST' }); const j = await r.json(); document.getElementById('bal').textContent = j.balance.toFixed(2); document.getElementById('msg').textContent = 'Saldo recarregado! +50 demo. Boa sorte! 🐯'; updateReload(); } catch (e) {}
+};
 document.getElementById('spin').onclick = async () => {
   if (spinning) return; spinning = true;
   try { const s = document.getElementById('winSound'); s.pause(); s.currentTime = 0; } catch (e) {}
@@ -406,17 +450,17 @@ document.getElementById('spin').onclick = async () => {
     if (j.jackpotHit > 0) msg = '💰 JACKPOT! +' + j.jackpotHit.toFixed(2) + '! ' + msg;
     if (j.fsWon > 0) msg += ' 🎁 +' + j.fsWon + ' GIROS GRATIS!';
     document.getElementById('msg').innerHTML = msg;
-    if (j.balance <= 0) { ['winSound', 'poetaSound', 'risadaSound'].forEach((id) => { try { document.getElementById(id).pause(); } catch (e) {} }); const a = document.getElementById('endSound'); a.currentTime = 0; a.play().catch(() => {}); }
-    else if (j.win > 0) { ['winSound', 'endSound', 'risadaSound'].forEach((id) => { try { document.getElementById(id).pause(); } catch (e) {} }); const p = document.getElementById('poetaSound'); p.currentTime = 0; p.play().catch(() => {}); }
-    else { ['winSound', 'endSound', 'poetaSound'].forEach((id) => { try { document.getElementById(id).pause(); } catch (e) {} }); const r = document.getElementById('risadaSound'); r.currentTime = 0; r.play().catch(() => {}); }
+    if (j.balance <= 0) sfx('endSound');
+    else if (j.win > 0) sfx('poetaSound');
+    else sfx('risadaSound');
     if (j.bigWin || j.jackpotHit > 0) { document.getElementById('bigt').textContent = j.jackpotHit > 0 ? 'JACKPOT!' : 'BIG WIN'; document.getElementById('bigval').textContent = j.win.toFixed(2); document.getElementById('bigwin').classList.add('show'); coins(36); setTimeout(() => { document.getElementById('bigwin').classList.remove('show'); stopCoins(); }, 3500); }
     hist();
     if (j.bonusReady) {
       document.getElementById('bonusres').textContent = '';
       document.getElementById('bonusmodal').classList.add('show');
     }
-  } catch (e) { clearInterval(iv); const m = e.message || 'Erro de conexao.'; document.getElementById('msg').textContent = m; if (m.toLowerCase().indexOf('saldo') !== -1) { const a = document.getElementById('endSound'); a.currentTime = 0; a.play().catch(() => {}); } }
-  spinning = false; document.getElementById('spin').disabled = false;
+  } catch (e) { clearInterval(iv); const m = e.message || 'Erro de conexao.'; document.getElementById('msg').textContent = m; if (m.toLowerCase().indexOf('saldo') !== -1) sfx('endSound'); }
+  spinning = false; document.getElementById('spin').disabled = false; updateReload();
 };
 document.querySelectorAll('.env').forEach((b) => (b.onclick = async () => {
   const r = await fetch('/api/bonus', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choice: Number(b.dataset.c) }) });
@@ -427,7 +471,7 @@ document.querySelectorAll('.env').forEach((b) => (b.onclick = async () => {
   hist();
   setTimeout(() => document.getElementById('bonusmodal').classList.remove('show'), 3000);
 }));
-(async () => { try { await fetch('/api/reset', { method: 'POST' }); } catch (e) {} const r = await fetch('/api/state'); const j = await r.json(); document.getElementById('bal').textContent = j.balance.toFixed(2); document.getElementById('jack').textContent = j.jackpot.toFixed(2); fsbar(j.freeSpins); })();
+(async () => { try { const r = await fetch('/api/state'); const j = await r.json(); document.getElementById('bal').textContent = j.balance.toFixed(2); document.getElementById('jack').textContent = j.jackpot.toFixed(2); fsbar(j.freeSpins); } catch (e) {} })();
 hist();
 </script>
 </body>
@@ -482,10 +526,33 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
       return res.end(RAINHA_PHOTO);
     }
+    if (req.method === 'GET' && url.pathname === '/anao.jpg') {
+      if (!ANAO_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(ANAO_PHOTO);
+    }
     if (req.method === 'GET' && url.pathname === '/win.mp3') {
       if (!WIN_SOUND) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400' });
       return res.end(WIN_SOUND);
+    }
+    if (url.pathname === '/fundo.mp4') {
+      // Streaming com suporte a Range (video de fundo, arquivo grande: nao carrega na RAM)
+      try {
+        const st = fs.statSync(path.join(__dirname, '0927.mp4'));
+        const range = req.headers.range;
+        if (range) {
+          const m = range.match(/bytes=(\d*)-(\d*)/);
+          const start = m && m[1] ? parseInt(m[1], 10) : 0;
+          const end = m && m[2] ? parseInt(m[2], 10) : Math.min(start + 4 * 1024 * 1024 - 1, st.size - 1);
+          res.writeHead(206, { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Cache-Control': 'public, max-age=86400' });
+          return fs.createReadStream(path.join(__dirname, '0927.mp4'), { start, end }).pipe(res);
+        }
+        res.writeHead(200, { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': st.size, 'Cache-Control': 'public, max-age=86400' });
+        return fs.createReadStream(path.join(__dirname, '0927.mp4')).pipe(res);
+      } catch (e) {
+        res.writeHead(404); return res.end();
+      }
     }
     if (req.method === 'GET' && url.pathname === '/end.mp3') {
       if (!END_SOUND) { res.writeHead(404); return res.end(); }
@@ -510,6 +577,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && url.pathname === '/api/reset') {
       balance = 50; freeSpins = 0; freeBet = 0; pendingBonus = null; history = [];
+      return send(res, 200, 'application/json', JSON.stringify({ balance, jackpot, freeSpins }));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/reload') {
+      balance = Math.round((balance + 50) * 100) / 100;
       return send(res, 200, 'application/json', JSON.stringify({ balance, jackpot, freeSpins }));
     }
     if (req.method === 'POST' && url.pathname === '/api/spin') {
