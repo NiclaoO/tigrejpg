@@ -5,9 +5,65 @@
 // Tudo em memoria (reseta ao reiniciar). Saldo ficticio.
 
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 const PORT = 3002;
 const HOST = '127.0.0.1';
+
+// Foto do simbolo Tigre (arquivo local da pasta). Se faltar, volta ao emoji.
+let TIGER_PHOTO = null;
+try {
+  TIGER_PHOTO = fs.readFileSync(path.join(__dirname, 'BOLSONARO.PNG'));
+  console.log('Foto do Tigre carregada: BOLSONARO.PNG (' + TIGER_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('BOLSONARO.PNG nao encontrada — usando emoji 🐯.');
+}
+
+// Foto do simbolo Envelope. Se faltar, volta ao emoji.
+let ARMA_PHOTO = null;
+try {
+  ARMA_PHOTO = fs.readFileSync(path.join(__dirname, 'ARMINHA.jpg'));
+  console.log('Foto do Envelope carregada: ARMINHA.jpg (' + ARMA_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('ARMINHA.jpg nao encontrada — usando emoji 🧧.');
+}
+
+// Foto do simbolo Lanterna. Se faltar, volta ao emoji.
+let CORACAO_PHOTO = null;
+try {
+  CORACAO_PHOTO = fs.readFileSync(path.join(__dirname, 'CORACAO.jpg'));
+  console.log('Foto da Lanterna carregada: CORACAO.jpg (' + CORACAO_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('CORACAO.jpg nao encontrada — usando emoji 🏮.');
+}
+
+// Foto do simbolo Laranja. Se faltar, volta ao emoji.
+let MASC_PHOTO = null;
+try {
+  MASC_PHOTO = fs.readFileSync(path.join(__dirname, 'mascara.jpg'));
+  console.log('Foto da Laranja carregada: mascara.jpg (' + MASC_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('mascara.jpg nao encontrada — usando emoji 🍊.');
+}
+
+// Foto do simbolo Fogos. Se faltar, volta ao emoji.
+let DOM_PHOTO = null;
+try {
+  DOM_PHOTO = fs.readFileSync(path.join(__dirname, 'DOMINGO.jpg'));
+  console.log('Foto dos Fogos carregada: DOMINGO.jpg (' + DOM_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('DOMINGO.jpg nao encontrada — usando emoji 🧨.');
+}
+
+// Foto do simbolo Moedas. Se faltar, volta ao emoji.
+let RAINHA_PHOTO = null;
+try {
+  RAINHA_PHOTO = fs.readFileSync(path.join(__dirname, 'RAINHA.jpg'));
+  console.log('Foto das Moedas carregada: RAINHA.jpg (' + RAINHA_PHOTO.length + ' bytes)');
+} catch (e) {
+  console.log('RAINHA.jpg nao encontrada — usando emoji 🪙.');
+}
 
 const SYMBOLS = [
   { icon: '🐯', name: 'Tigre', pay: 25, weight: 1 },
@@ -134,15 +190,29 @@ function pickBonus(choice) {
   return { prize, mult: prizes[choice], prizes, balance, jackpot: Math.round(jackpot * 100) / 100 };
 }
 
+const TIGER_IMG = TIGER_PHOTO ? '<img src="/tigre.png" class="timg" alt="Tigre">' : '🐯';
+const TIGER_IMG_SM = TIGER_PHOTO ? '<img src="/tigre.png" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:50%;vertical-align:-4px" alt="Tigre">' : '🐯';
+const ARMA_IMG = ARMA_PHOTO ? '<img src="/arminha.jpg" class="timg" alt="Envelope">' : '🧧';
+const ARMA_IMG_SM = ARMA_PHOTO ? '<img src="/arminha.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Envelope">' : '🧧';
+const ARMA_IMG_BTN = ARMA_PHOTO ? '<img src="/arminha.jpg" style="width:64px;height:64px;object-fit:cover;border-radius:12px" alt="Envelope">' : '🧧';
+const CORACAO_IMG = CORACAO_PHOTO ? '<img src="/coracao.jpg" class="timg" alt="Lanterna">' : '🏮';
+const CORACAO_IMG_SM = CORACAO_PHOTO ? '<img src="/coracao.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Lanterna">' : '🏮';
+const MASC_IMG = MASC_PHOTO ? '<img src="/mascara.jpg" class="timg" alt="Laranja">' : '🍊';
+const MASC_IMG_SM = MASC_PHOTO ? '<img src="/mascara.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Laranja">' : '🍊';
+const DOM_IMG = DOM_PHOTO ? '<img src="/domingo.jpg" class="timg" alt="Fogos">' : '🧨';
+const DOM_IMG_SM = DOM_PHOTO ? '<img src="/domingo.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Fogos">' : '🧨';
+const RAINHA_IMG = RAINHA_PHOTO ? '<img src="/rainha.jpg" class="timg" alt="Moedas">' : '🪙';
+const RAINHA_IMG_SM = RAINHA_PHOTO ? '<img src="/rainha.jpg" style="width:1.3em;height:1.3em;object-fit:cover;border-radius:4px;vertical-align:-4px" alt="Moedas">' : '🪙';
+
 const PAY_ROWS = SYMBOLS.filter((s) => !s.scatter)
-  .map((s) => `<div><span>${s.icon} ${s.name} ×3</span><strong>${s.pay}x</strong></div>`).join('');
+  .map((s) => `<div><span>${s.name === 'Tigre' ? TIGER_IMG_SM : s.name === 'Envelope' ? ARMA_IMG_SM : s.name === 'Lanterna' ? CORACAO_IMG_SM : s.name === 'Laranja' ? MASC_IMG_SM : s.name === 'Fogos' ? DOM_IMG_SM : s.name === 'Moedas' ? RAINHA_IMG_SM : s.icon} ${s.name} ×3</span><strong>${s.pay}x</strong></div>`).join('');
 
 const PAGE = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tiger Luck — Node.js</title>
+<title>BolsoLucks</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
 body{background:#2b0508;display:flex;justify-content:center;color:#ffe9b0}
@@ -155,9 +225,10 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 #fsbar{display:none;margin-top:10px;padding:8px 22px;border-radius:999px;border:2px solid #7CFC00;background:rgba(0,0,0,.5);font-weight:900;color:#7CFC00}
 .frame{margin-top:14px;padding:10px;border-radius:16px;background:linear-gradient(180deg,#ffe9a8,#d9a529 30%,#8a6a1f 50%,#d9a529 70%,#ffe9a8);box-shadow:0 6px 24px rgba(0,0,0,.6),0 0 30px rgba(245,200,69,.35);width:100%;max-width:340px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border-radius:10px;background:#3d060a;padding:8px}
-.cell{aspect-ratio:1;display:grid;place-items:center;font-size:2.4rem;border-radius:8px;background:linear-gradient(180deg,#fffdf4,#f0d48a);outline:2px solid #a8842c}
+.cell{aspect-ratio:1;display:grid;place-items:center;font-size:2.4rem;border-radius:8px;background:linear-gradient(180deg,#fffdf4,#f0d48a);outline:2px solid #a8842c;position:relative;overflow:hidden}
 .cell.win{background:radial-gradient(circle,#fffbe0,#ffd968);outline:3px solid #fff200;box-shadow:0 0 14px #fff200}
 .cell.blur{filter:blur(1px)}
+.timg{position:absolute;top:8%;left:8%;width:84%;height:84%;object-fit:cover;border-radius:10px}
 .stat{display:flex;gap:10px;margin-top:12px}
 .box{min-width:150px;text-align:center;padding:8px 18px;border-radius:12px;border:2px solid #f5c445;background:rgba(0,0,0,.45)}
 .box small{font-size:.62rem;letter-spacing:.18em;color:#e8b96a}
@@ -192,8 +263,8 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 <body>
 <div class="panel">
 <div class="orn">✦ ✦ ✦</div>
-<div class="mascot">🐯</div>
-<h1>TIGER LUCK</h1>
+<div class="mascot"><img src="/tigre.png" alt="Tigre" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
+<h1>BOLSOLUCKS</h1>
 <div class="sub">NODE.JS · 3×3 · JACKPOT · GIROS GRATIS</div>
 <div class="jack">💰 JACKPOT <span id="jack">500.00</span></div>
 <div id="fsbar">🎁 GIROS GRATIS: <span id="fsn">0</span> (ganhos ×2)</div>
@@ -202,29 +273,42 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 <div class="box"><small>SALDO</small><br><b id="bal">1000.00</b></div>
 <div class="box"><small>GANHO</small><br><b id="win">0.00</b></div>
 </div>
-<div id="msg">Aperte GIRAR e boa sorte! 🐯</div>
+<div id="msg">Aperte GIRAR e boa sorte!</div>
 <div class="controls">
 <div class="ctl"><small>APOSTA</small><div class="val"><button class="rbtn" id="minus">−</button><span id="bet">10</span><button class="rbtn" id="plus">+</button></div></div>
-<button id="spin">🐯<br>GIRAR</button>
+<button id="spin"><img src="/tigre.png" alt="Tigre" style="width:44px;height:44px;object-fit:cover;border-radius:50%;vertical-align:middle"><br>GIRAR</button>
 <div class="ctl"><small>RODADAS</small><div class="val" id="rounds">0</div></div>
 </div>
 <div class="pay">${PAY_ROWS}<div><span>⭐ Estrela ×3 em qualquer lugar</span><strong>+10 grátis</strong></div><div><span>🐯 Tigre ×3 em qualquer lugar</span><strong>bônus</strong></div><div style="margin-top:6px;color:#ffd968;font-size:.78rem">Grade cheia igual: prêmio <strong>×10</strong> + fatia do jackpot (tigre cheia = tudo) · 5 linhas</div></div>
 <div class="hist"><table><tr><th>#</th><th>APOSTA</th><th>GANHO</th><th>INFO</th></tr><tbody id="hist"></tbody></table></div>
 <div class="back">Saldo ficticio · jogo proprio, sem relacao com PG Soft · <b>node server.js</b></div>
 </div>
-<div id="bigwin"><div><div class="t" id="bigt">BIG WIN</div><div class="v" id="bigval"></div><div style="font-size:44px;text-align:center">🐯🪙🐯</div></div></div>
-<div id="bonusmodal"><div style="text-align:center"><div style="font-size:1.6rem;font-weight:900;color:#ffd968">🎁 BONUS DO TIGRE 🎁</div><div style="color:#ffe9b0;margin:6px 0 12px">Escolha um envelope!</div><div><button class="env" data-c="0">🧧</button><button class="env" data-c="1">🧧</button><button class="env" data-c="2">🧧</button></div><div id="bonusres" style="margin-top:10px;font-weight:900;color:#7CFC00"></div></div></div>
+<div id="bigwin"><div><div class="t" id="bigt">BIG WIN</div><div class="v" id="bigval"></div><div style="text-align:center"><img src="/tigre.png" alt="Tigre" style="width:64px;height:64px;object-fit:cover;border-radius:50%;vertical-align:middle"><img src="/rainha.jpg" alt="Moedas" style="width:64px;height:64px;object-fit:cover;border-radius:12px;vertical-align:middle"><img src="/tigre.png" alt="Tigre" style="width:64px;height:64px;object-fit:cover;border-radius:50%;vertical-align:middle"></div></div></div>
+<div id="bonusmodal"><div style="text-align:center"><div style="font-size:1.6rem;font-weight:900;color:#ffd968">🎁 BONUS DO TIGRE 🎁</div><div style="color:#ffe9b0;margin:6px 0 12px">Escolha um envelope!</div><div><button class="env" data-c="0">${ARMA_IMG_BTN}</button><button class="env" data-c="1">${ARMA_IMG_BTN}</button><button class="env" data-c="2">${ARMA_IMG_BTN}</button></div><div id="bonusres" style="margin-top:10px;font-weight:900;color:#7CFC00"></div></div></div>
 <script>
 const ICONS = ${JSON.stringify(SYMBOLS.map((s) => s.icon))};
+const TIG = ${JSON.stringify(TIGER_IMG)};
+ICONS[0] = TIG; // simbolo Tigre vira a foto
+const ARMA = ${JSON.stringify(ARMA_IMG)};
+ICONS[1] = ARMA; // simbolo Envelope vira a foto (tamanho da grade)
+const CORA = ${JSON.stringify(CORACAO_IMG)};
+ICONS[5] = CORA; // simbolo Lanterna vira a foto (tamanho da grade)
+const MASC = ${JSON.stringify(MASC_IMG)};
+ICONS[3] = MASC; // simbolo Laranja vira a foto (tamanho da grade)
+const DOMI = ${JSON.stringify(DOM_IMG)};
+ICONS[2] = DOMI; // simbolo Fogos vira a foto (tamanho da grade)
+const RAI = ${JSON.stringify(RAINHA_IMG)};
+ICONS[4] = RAI; // simbolo Moedas vira a foto (tamanho da grade)
+function sym(i) { return ICONS[i]; }
 const BETS = ${JSON.stringify(BETS)};
 let betIdx = 3, spinning = false, rounds = 0;
 const grid = document.getElementById('grid');
 const cells = [];
-for (let i = 0; i < 9; i++) { const d = document.createElement('div'); d.className = 'cell'; d.textContent = '🏮'; grid.appendChild(d); cells.push(d); }
+for (let i = 0; i < 9; i++) { const d = document.createElement('div'); d.className = 'cell'; d.innerHTML = CORA; grid.appendChild(d); cells.push(d); }
 function setBet(d) { betIdx = Math.min(BETS.length - 1, Math.max(0, betIdx + d)); document.getElementById('bet').textContent = BETS[betIdx]; }
 document.getElementById('minus').onclick = () => setBet(-1);
 document.getElementById('plus').onclick = () => setBet(1);
-function coins(n) { document.querySelectorAll('.coin').forEach((e) => e.remove()); for (let i = 0; i < n; i++) { const s = document.createElement('span'); s.className = 'coin'; s.textContent = '🪙'; s.style.left = ((i * 97) % 100) + '%'; s.style.fontSize = (18 + ((i * 13) % 22)) + 'px'; s.style.animationDuration = (1.6 + ((i * 7) % 10) / 10) + 's'; s.style.animationDelay = ((i % 12) * 0.18) + 's'; document.body.appendChild(s); } }
+function coins(n) { document.querySelectorAll('.coin').forEach((e) => e.remove()); for (let i = 0; i < n; i++) { const s = document.createElement('span'); s.className = 'coin'; const sz = (18 + ((i * 13) % 22)); s.innerHTML = '<img src="/rainha.jpg" style="width:' + sz + 'px;height:' + sz + 'px;object-fit:cover;border-radius:8px">'; s.style.left = ((i * 97) % 100) + '%'; s.style.animationDuration = (1.6 + ((i * 7) % 10) / 10) + 's'; s.style.animationDelay = ((i % 12) * 0.18) + 's'; document.body.appendChild(s); } }
 function stopCoins() { document.querySelectorAll('.coin').forEach((e) => e.remove()); }
 function fsbar(n) { const b = document.getElementById('fsbar'); if (n > 0) { b.style.display = 'block'; document.getElementById('fsn').textContent = n; } else b.style.display = 'none'; }
 async function hist() { try { const r = await fetch('/api/history'); const j = await r.json(); document.getElementById('hist').innerHTML = j.map((h, i) => '<tr><td>' + (rounds - i) + '</td><td>' + (h.free ? 'GRÁTIS' : h.bet) + '</td><td>' + h.win.toFixed(2) + '</td><td>' + [h.jackpot > 0 ? '💰' : '', h.fsWon > 0 ? '🎁+' + h.fsWon : '', h.bonus ? '🧧' : '', h.x10 ? 'x10' : ''].filter(Boolean).join(' ') + '</td></tr>').join(''); } catch (e) {} }
@@ -234,14 +318,14 @@ document.getElementById('spin').onclick = async () => {
   document.getElementById('msg').textContent = 'Girando... 🎰';
   document.getElementById('bigwin').classList.remove('show'); stopCoins();
   cells.forEach((c) => { c.classList.remove('win'); c.classList.add('blur'); });
-  const iv = setInterval(() => cells.forEach((c) => (c.textContent = ICONS[Math.floor(Math.random() * ICONS.length)])), 100);
+  const iv = setInterval(() => cells.forEach((c) => (c.innerHTML = sym(Math.floor(Math.random() * ICONS.length)))), 100);
   try {
     const r = await fetch('/api/spin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bet: BETS[betIdx] }) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'erro');
     await new Promise((ok) => setTimeout(ok, 900));
     clearInterval(iv);
-    j.grid.forEach((s, i) => { cells[i].textContent = ICONS[s]; cells[i].classList.remove('blur'); });
+    j.grid.forEach((s, i) => { cells[i].innerHTML = sym(s); cells[i].classList.remove('blur'); });
     j.winCells.forEach((i) => cells[i].classList.add('win'));
     rounds++;
     document.getElementById('rounds').textContent = rounds;
@@ -251,10 +335,10 @@ document.getElementById('spin').onclick = async () => {
     document.getElementById('jack').textContent = j.jackpot.toFixed(2);
     fsbar(j.freeSpins);
     let msg = j.win > 0 ? 'Ganhou ' + j.win.toFixed(2) + ' demo!' : 'Sem linha premiada. Gire de novo!';
-    if (j.x10) msg = 'TIGER x10! 🐯🔥 ' + msg;
+    if (j.x10) msg = 'TIGER x10! ' + TIG + ' ' + msg;
     if (j.jackpotHit > 0) msg = '💰 JACKPOT! +' + j.jackpotHit.toFixed(2) + '! ' + msg;
     if (j.fsWon > 0) msg += ' 🎁 +' + j.fsWon + ' GIROS GRATIS!';
-    document.getElementById('msg').textContent = msg;
+    document.getElementById('msg').innerHTML = msg;
     if (j.bigWin || j.jackpotHit > 0) { document.getElementById('bigt').textContent = j.jackpotHit > 0 ? 'JACKPOT!' : 'BIG WIN'; document.getElementById('bigval').textContent = j.win.toFixed(2); document.getElementById('bigwin').classList.add('show'); coins(36); setTimeout(() => { document.getElementById('bigwin').classList.remove('show'); stopCoins(); }, 3500); }
     hist();
     if (j.bonusReady) {
@@ -298,6 +382,36 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   try {
     if (req.method === 'GET' && url.pathname === '/') return send(res, 200, 'text/html', PAGE);
+    if (req.method === 'GET' && url.pathname === '/tigre.png') {
+      if (!TIGER_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(TIGER_PHOTO);
+    }
+    if (req.method === 'GET' && url.pathname === '/arminha.jpg') {
+      if (!ARMA_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(ARMA_PHOTO);
+    }
+    if (req.method === 'GET' && url.pathname === '/coracao.jpg') {
+      if (!CORACAO_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(CORACAO_PHOTO);
+    }
+    if (req.method === 'GET' && url.pathname === '/mascara.jpg') {
+      if (!MASC_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(MASC_PHOTO);
+    }
+    if (req.method === 'GET' && url.pathname === '/domingo.jpg') {
+      if (!DOM_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(DOM_PHOTO);
+    }
+    if (req.method === 'GET' && url.pathname === '/rainha.jpg') {
+      if (!RAINHA_PHOTO) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(RAINHA_PHOTO);
+    }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       return send(res, 200, 'application/json', JSON.stringify({ balance, bets: BETS, jackpot, freeSpins, pendingBonus: !!pendingBonus }));
     }
@@ -327,5 +441,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Tiger Luck (Node.js) rodando em http://${HOST}:${PORT}/`);
+  console.log(`BolsoLucks (Node.js) rodando em http://${HOST}:${PORT}/`);
 });
