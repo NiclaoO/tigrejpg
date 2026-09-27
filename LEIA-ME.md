@@ -1,6 +1,24 @@
 # Pacote Tiger Luck Slot (jogo proprio, original)
 
-Conteudo desta pasta:
+## Versao Node.js standalone (recomendada para teste)
+
+Pasta `node/` — o Tigrinho em **Node.js puro, zero PHP**: um unico arquivo,
+sem `npm install`, sem banco.
+
+```powershell
+cd "$env:USERPROFILE\Documents\tigrinho\node"
+node server.js
+```
+
+Abra **http://127.0.0.1:3002/** — painel retrato vermelho/ouro, grade 3x3,
+botao GIRAR, aposta −/+, TIGER x10 na grade cheia e BIG WIN com chuva de moedas.
+
+- Lógica: `GET /api/state` (saldo + apostas) e `POST /api/spin {"bet": 10}`
+  (sorteio ponderado, 5 linhas, x10 em grade cheia). Saldo demo 1000 em memoria.
+- Para parar: `Get-Process -Name node | Stop-Process` (cuidado se o Vite do outro
+  projeto estiver rodando — ele tambem e `node`; confira a porta 3002 antes).
+
+## Conteudo desta pasta (integracao com o cassino principal)
 
 | Arquivo | Destino no projeto principal |
 |---|---|
