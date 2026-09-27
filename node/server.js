@@ -65,6 +65,42 @@ try {
   console.log('RAINHA.jpg nao encontrada — usando emoji 🪙.');
 }
 
+// Som de vitoria. Toca no navegador quando o jogador ganha.
+let WIN_SOUND = null;
+try {
+  WIN_SOUND = fs.readFileSync(path.join(__dirname, 'bolsonaro-e-norte-bolsonaro-e-nordeste.mp3'));
+  console.log('Som de vitoria carregado: bolsonaro-e-norte-bolsonaro-e-nordeste.mp3 (' + WIN_SOUND.length + ' bytes)');
+} catch (e) {
+  console.log('MP3 nao encontrado — sem som de vitoria.');
+}
+
+// Som de saldo zerado. Toca quando acaba o saldo e ao tentar girar sem saldo.
+let END_SOUND = null;
+try {
+  END_SOUND = fs.readFileSync(path.join(__dirname, 'bolsonaro-acabou-porra.mp3'));
+  console.log('Som de fim de saldo carregado: bolsonaro-acabou-porra.mp3 (' + END_SOUND.length + ' bytes)');
+} catch (e) {
+  console.log('MP3 do fim de saldo nao encontrado.');
+}
+
+// Som do jackpot. Toca em todo acerto.
+let POETA_SOUND = null;
+try {
+  POETA_SOUND = fs.readFileSync(path.join(__dirname, 'bolsonaro-poeta.mp3'));
+  console.log('Som do jackpot carregado: bolsonaro-poeta.mp3 (' + POETA_SOUND.length + ' bytes)');
+} catch (e) {
+  console.log('MP3 do jackpot nao encontrado.');
+}
+
+// Som de erro. Toca toda vez que a pessoa erra (giro sem ganho).
+let RISADA_SOUND = null;
+try {
+  RISADA_SOUND = fs.readFileSync(path.join(__dirname, 'bolsonaro-risada.mp3'));
+  console.log('Som de erro carregado: bolsonaro-risada.mp3 (' + RISADA_SOUND.length + ' bytes)');
+} catch (e) {
+  console.log('MP3 da risada nao encontrado.');
+}
+
 const SYMBOLS = [
   { icon: '🐯', name: 'Tigre', pay: 25, weight: 1 },
   { icon: '🧧', name: 'Envelope', pay: 10, weight: 2 },
@@ -86,12 +122,33 @@ const JACKPOT_SEED = 500;
 const JACKPOT_FEE = 0.01; // 1% de cada aposta alimenta o jackpot
 const HISTORY_MAX = 20;
 
-let balance = 1000;
+let balance = 50;
 let jackpot = JACKPOT_SEED;
 let freeSpins = 0;
 let freeBet = 0;
 let pendingBonus = null; // { bet, prizes:[mult...] }
 let history = [];
+
+// Persistencia: so o jackpot sobrevive (pote da casa). O saldo volta a 50
+// toda vez que a pagina e carregada (POST /api/reset no inicio).
+const SAVE_FILE = path.join(__dirname, 'saldo.json');
+function loadSave() {
+  try {
+    const s = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8'));
+    if (Number.isFinite(s.jackpot) && s.jackpot >= JACKPOT_SEED) jackpot = s.jackpot;
+    console.log('Jackpot carregado: ' + jackpot);
+  } catch (e) {
+    console.log('Sem save anterior — jackpot no inicial.');
+  }
+}
+function save() {
+  try {
+    fs.writeFileSync(SAVE_FILE, JSON.stringify({ jackpot }));
+  } catch (e) {
+    console.log('Falha ao salvar: ' + e.message);
+  }
+}
+loadSave();
 
 function drawSymbol() {
   let r = Math.random() * TOTAL_W;
@@ -172,6 +229,7 @@ function spin(bet, isFree) {
     freeLeft: freeSpins, balance,
   };
   pushHistory(entry);
+  save();
   return {
     grid, symbols: entry.symbols, winCells: [...cells], wins, win: total,
     x10: mult, jackpotHit, fsWon, bonusReady, bigWin: total >= bet * 10,
@@ -187,6 +245,7 @@ function pickBonus(choice) {
   const prize = Math.round(bet * prizes[choice] * 100) / 100;
   balance = Math.round((balance + prize) * 100) / 100;
   pushHistory({ bet: 0, free: false, symbols: ['🎁', '🎁', '🎁'], win: prize, x10: false, jackpot: 0, fsWon: 0, bonus: false, bonusPick: true, freeLeft: freeSpins, balance });
+  save();
   return { prize, mult: prizes[choice], prizes, balance, jackpot: Math.round(jackpot * 100) / 100 };
 }
 
@@ -262,6 +321,10 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 </head>
 <body>
 <div class="panel">
+<audio id="winSound" src="/win.mp3" preload="auto"></audio>
+<audio id="endSound" src="/end.mp3" preload="auto"></audio>
+<audio id="poetaSound" src="/poeta.mp3" preload="auto"></audio>
+<audio id="risadaSound" src="/risada.mp3" preload="auto"></audio>
 <div class="orn">✦ ✦ ✦</div>
 <div class="mascot"><img src="/tigre.png" alt="Tigre" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
 <h1>BOLSOLUCKS</h1>
@@ -270,7 +333,7 @@ h1{margin:8px 0 0;font-size:1.9rem;font-weight:900;letter-spacing:.06em;color:#f
 <div id="fsbar">🎁 GIROS GRATIS: <span id="fsn">0</span> (ganhos ×2)</div>
 <div class="frame"><div class="grid" id="grid"></div></div>
 <div class="stat">
-<div class="box"><small>SALDO</small><br><b id="bal">1000.00</b></div>
+<div class="box"><small>SALDO</small><br><b id="bal">50.00</b></div>
 <div class="box"><small>GANHO</small><br><b id="win">0.00</b></div>
 </div>
 <div id="msg">Aperte GIRAR e boa sorte!</div>
@@ -314,6 +377,10 @@ function fsbar(n) { const b = document.getElementById('fsbar'); if (n > 0) { b.s
 async function hist() { try { const r = await fetch('/api/history'); const j = await r.json(); document.getElementById('hist').innerHTML = j.map((h, i) => '<tr><td>' + (rounds - i) + '</td><td>' + (h.free ? 'GRÁTIS' : h.bet) + '</td><td>' + h.win.toFixed(2) + '</td><td>' + [h.jackpot > 0 ? '💰' : '', h.fsWon > 0 ? '🎁+' + h.fsWon : '', h.bonus ? '🧧' : '', h.x10 ? 'x10' : ''].filter(Boolean).join(' ') + '</td></tr>').join(''); } catch (e) {} }
 document.getElementById('spin').onclick = async () => {
   if (spinning) return; spinning = true;
+  try { const s = document.getElementById('winSound'); s.pause(); s.currentTime = 0; } catch (e) {}
+  try { const s = document.getElementById('endSound'); s.pause(); s.currentTime = 0; } catch (e) {}
+  try { const s = document.getElementById('poetaSound'); s.pause(); s.currentTime = 0; } catch (e) {}
+  try { const s = document.getElementById('risadaSound'); s.pause(); s.currentTime = 0; } catch (e) {}
   document.getElementById('spin').disabled = true;
   document.getElementById('msg').textContent = 'Girando... 🎰';
   document.getElementById('bigwin').classList.remove('show'); stopCoins();
@@ -339,13 +406,16 @@ document.getElementById('spin').onclick = async () => {
     if (j.jackpotHit > 0) msg = '💰 JACKPOT! +' + j.jackpotHit.toFixed(2) + '! ' + msg;
     if (j.fsWon > 0) msg += ' 🎁 +' + j.fsWon + ' GIROS GRATIS!';
     document.getElementById('msg').innerHTML = msg;
+    if (j.balance <= 0) { ['winSound', 'poetaSound', 'risadaSound'].forEach((id) => { try { document.getElementById(id).pause(); } catch (e) {} }); const a = document.getElementById('endSound'); a.currentTime = 0; a.play().catch(() => {}); }
+    else if (j.win > 0) { ['winSound', 'endSound', 'risadaSound'].forEach((id) => { try { document.getElementById(id).pause(); } catch (e) {} }); const p = document.getElementById('poetaSound'); p.currentTime = 0; p.play().catch(() => {}); }
+    else { ['winSound', 'endSound', 'poetaSound'].forEach((id) => { try { document.getElementById(id).pause(); } catch (e) {} }); const r = document.getElementById('risadaSound'); r.currentTime = 0; r.play().catch(() => {}); }
     if (j.bigWin || j.jackpotHit > 0) { document.getElementById('bigt').textContent = j.jackpotHit > 0 ? 'JACKPOT!' : 'BIG WIN'; document.getElementById('bigval').textContent = j.win.toFixed(2); document.getElementById('bigwin').classList.add('show'); coins(36); setTimeout(() => { document.getElementById('bigwin').classList.remove('show'); stopCoins(); }, 3500); }
     hist();
     if (j.bonusReady) {
       document.getElementById('bonusres').textContent = '';
       document.getElementById('bonusmodal').classList.add('show');
     }
-  } catch (e) { clearInterval(iv); document.getElementById('msg').textContent = e.message || 'Erro de conexao.'; }
+  } catch (e) { clearInterval(iv); const m = e.message || 'Erro de conexao.'; document.getElementById('msg').textContent = m; if (m.toLowerCase().indexOf('saldo') !== -1) { const a = document.getElementById('endSound'); a.currentTime = 0; a.play().catch(() => {}); } }
   spinning = false; document.getElementById('spin').disabled = false;
 };
 document.querySelectorAll('.env').forEach((b) => (b.onclick = async () => {
@@ -357,7 +427,7 @@ document.querySelectorAll('.env').forEach((b) => (b.onclick = async () => {
   hist();
   setTimeout(() => document.getElementById('bonusmodal').classList.remove('show'), 3000);
 }));
-(async () => { const r = await fetch('/api/state'); const j = await r.json(); document.getElementById('bal').textContent = j.balance.toFixed(2); document.getElementById('jack').textContent = j.jackpot.toFixed(2); fsbar(j.freeSpins); })();
+(async () => { try { await fetch('/api/reset', { method: 'POST' }); } catch (e) {} const r = await fetch('/api/state'); const j = await r.json(); document.getElementById('bal').textContent = j.balance.toFixed(2); document.getElementById('jack').textContent = j.jackpot.toFixed(2); fsbar(j.freeSpins); })();
 hist();
 </script>
 </body>
@@ -412,11 +482,35 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
       return res.end(RAINHA_PHOTO);
     }
+    if (req.method === 'GET' && url.pathname === '/win.mp3') {
+      if (!WIN_SOUND) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(WIN_SOUND);
+    }
+    if (req.method === 'GET' && url.pathname === '/end.mp3') {
+      if (!END_SOUND) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(END_SOUND);
+    }
+    if (req.method === 'GET' && url.pathname === '/poeta.mp3') {
+      if (!POETA_SOUND) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(POETA_SOUND);
+    }
+    if (req.method === 'GET' && url.pathname === '/risada.mp3') {
+      if (!RISADA_SOUND) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(RISADA_SOUND);
+    }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       return send(res, 200, 'application/json', JSON.stringify({ balance, bets: BETS, jackpot, freeSpins, pendingBonus: !!pendingBonus }));
     }
     if (req.method === 'GET' && url.pathname === '/api/history') {
       return send(res, 200, 'application/json', JSON.stringify(history));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/reset') {
+      balance = 50; freeSpins = 0; freeBet = 0; pendingBonus = null; history = [];
+      return send(res, 200, 'application/json', JSON.stringify({ balance, jackpot, freeSpins }));
     }
     if (req.method === 'POST' && url.pathname === '/api/spin') {
       if (pendingBonus) return send(res, 409, 'application/json', JSON.stringify({ error: 'Escolha o envelope do bonus antes de girar.' }));
