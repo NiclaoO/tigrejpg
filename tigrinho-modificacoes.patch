@@ -1,0 +1,374 @@
+diff --git a/casino/backend/src/game/game.controller.ts b/casino/backend/src/game/game.controller.ts
+index b3acc7d..6e918e2 100644
+--- a/casino/backend/src/game/game.controller.ts
++++ b/casino/backend/src/game/game.controller.ts
+@@ -130,6 +130,20 @@ export class GameController {
+     return this.gameService.settleNumberSlot(body.userId, body.gameId);
+   }
+ 
++  @UseGuards(JwtAuthGuard)
++  @Post('tiger_slot/invest')
++  async investTigerSlot(@Body() body: NumberSlotInvestDto, @Req() req: any) {
++    this.assertUser(body.userId, req);
++    return this.gameService.createTigerSlotRound(body.userId, body.invest, body.choose);
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Post('tiger_slot/settle')
++  async settleTigerSlot(@Body() body: NumberSlotSettleDto, @Req() req: any) {
++    this.assertUser(body.userId, req);
++    return this.gameService.settleTigerSlot(body.userId, body.gameId);
++  }
++
+   @UseGuards(JwtAuthGuard)
+   @Post('number_pool/invest')
+   async investNumberPool(@Body() body: NumberPoolInvestDto, @Req() req: any) {
+diff --git a/casino/backend/src/game/game.service.ts b/casino/backend/src/game/game.service.ts
+index 4fe3974..e599c4d 100644
+--- a/casino/backend/src/game/game.service.ts
++++ b/casino/backend/src/game/game.service.ts
+@@ -524,6 +524,159 @@ export class GameService {
+     });
+   }
+ 
++  async createTigerSlotRound(userId: number, invest: string | number, choose: number) {
++    const game = await this.findByAlias('tiger_slot');
++    if (!game || game.status !== 1) {
++      throw new Error('Game not found');
++    }
++
++    const amount = MoneyUtil.toDecimal(invest);
++    const minLimit = new Prisma.Decimal(game.minLimit.toString());
++    const maxLimit = new Prisma.Decimal(game.maxLimit.toString());
++    if (amount.lessThanOrEqualTo(0) || amount.lessThan(minLimit) || amount.greaterThan(maxLimit)) {
++      throw new Error('Please follow the investment limits for this game');
++    }
++
++    const probabilities = this.readNumberArray(game.probableWin);
++    const random = Math.floor(Math.random() * 100) + 1;
++    let winStatus = 3;
++
++    if (random < (probabilities[0] ?? 0)) {
++      winStatus = 0;
++    } else if (random < (probabilities[0] ?? 0) + (probabilities[1] ?? 0)) {
++      winStatus = 1;
++    } else if (
++      random <
++      (probabilities[0] ?? 0) +
++        (probabilities[1] ?? 0) +
++        (probabilities[3] ?? 0)
++    ) {
++      winStatus = 2;
++    }
++
++    const result = this.createNumberSlotResult(choose, winStatus);
++
++    return this.prisma.$transaction(async (tx) => {
++      const runningRound = await tx.gameLog.findFirst({
++        where: { userId, gameId: Number(game.id), status: 0 },
++      });
++      if (runningRound) {
++        throw new Error('1 game is in-complete. Please wait');
++      }
++
++      const user = await tx.user.findUniqueOrThrow({
++        where: { id: BigInt(userId) },
++      });
++      const currentBalance = new Prisma.Decimal(user.balance.toString());
++      if (currentBalance.lessThan(amount)) {
++        throw new Error('Insufficient balance');
++      }
++
++      const nextBalance = currentBalance.minus(amount);
++      await tx.user.update({
++        where: { id: BigInt(userId) },
++        data: { balance: nextBalance },
++      });
++
++      const gameLog = await tx.gameLog.create({
++        data: {
++          userId,
++          gameId: Number(game.id),
++          userSelect: String(choose),
++          result: JSON.stringify(result),
++          status: 0,
++          invest: amount,
++          winAmo: new Prisma.Decimal('0'),
++          winStatus,
++          gameName: game.name ?? 'Tiger Luck Slot',
++        },
++      });
++
++      await tx.transaction.create({
++        data: {
++          userId,
++          amount,
++          charge: new Prisma.Decimal('0'),
++          postBalance: nextBalance,
++          trxType: '-',
++          trx: `BET-${gameLog.id}`,
++          details: `Invest to ${game.name ?? 'Tiger Luck Slot'}`,
++          remark: 'invest',
++        },
++      });
++
++      return {
++        gameId: Number(gameLog.id),
++        number: result,
++        win: winStatus,
++        balance: nextBalance.toFixed(8),
++      };
++    });
++  }
++
++  async settleTigerSlot(userId: number, gameLogId: number) {
++    const game = await this.findByAlias('tiger_slot');
++    if (!game) {
++      throw new Error('Game not found');
++    }
++
++    return this.prisma.$transaction(async (tx) => {
++      const gameLog = await tx.gameLog.findFirst({
++        where: {
++          id: BigInt(gameLogId),
++          userId,
++          gameId: Number(game.id),
++          status: 0,
++        },
++      });
++      if (!gameLog) {
++        throw new Error('Game Logs not found');
++      }
++
++      const levels = this.readNumberArray(game.level);
++      const level = gameLog.winStatus ?? 0;
++      const percentage = level > 0 ? new Prisma.Decimal(String(levels[level - 1] ?? 0)) : new Prisma.Decimal('0');
++      const payout = new Prisma.Decimal(gameLog.invest.toString()).mul(percentage).div(100);
++      const user = await tx.user.findUniqueOrThrow({
++        where: { id: BigInt(userId) },
++      });
++      const nextBalance = new Prisma.Decimal(user.balance.toString()).plus(payout);
++
++      await tx.user.update({
++        where: { id: BigInt(userId) },
++        data: { balance: nextBalance },
++      });
++
++      const updated = await tx.gameLog.update({
++        where: { id: gameLog.id },
++        data: { status: 1, winAmo: payout },
++      });
++
++      if (payout.greaterThan(0)) {
++        await tx.transaction.create({
++          data: {
++            userId,
++            amount: payout,
++            charge: new Prisma.Decimal('0'),
++            postBalance: nextBalance,
++            trxType: '+',
++            trx: `WIN-${updated.id}`,
++            details: `${percentage}% Win bonus of Tiger Luck Slot Game ${level} Time`,
++            remark: 'win_bonus',
++          },
++        });
++      }
++
++      return {
++        gameId: Number(updated.id),
++        result: this.parseNumberResult(updated.result),
++        win: level,
++        won: payout.greaterThan(0),
++        balance: nextBalance.toFixed(8),
++      };
++    });
++  }
++
+   async createNumberPoolRound(userId: number, invest: string | number, choose: number) {
+     const game = await this.findByAlias('number_pool');
+     if (!game || game.status !== 1) {
+diff --git a/casino/core/app/Http/Controllers/User/PlayController.php b/casino/core/app/Http/Controllers/User/PlayController.php
+index c12a85c..0842333 100644
+--- a/casino/core/app/Http/Controllers/User/PlayController.php
++++ b/casino/core/app/Http/Controllers/User/PlayController.php
+@@ -598,6 +598,113 @@ protected function gameEndNumberSlot($game, $request) {
+         return response()->json($res);
+     }
+ 
++    /*
++     * Tiger Luck Slot (original game — same 3-reel math as Number Slot)
++     */
++
++    protected function playTigerSlot($game, $request) {
++        $validator = $this->investValidation($request, '0,1,2,3,4,5,6,7,8,9');
++
++        if ($validator->fails()) {
++            return response()->json(['errors' => $validator->errors()->all()]);
++        }
++
++        $user = $this->player;
++
++        $fallback = $this->fallback($request, $user, $game);
++
++        if (@$fallback['error']) {
++            return response()->json($fallback);
++        }
++
++        $random = mt_rand(1, 100);
++
++        if ($game->probable_win[0] > $random) {
++            $result = numberSlotResult(0, $request->choose);
++            $win    = 0;
++        } elseif ($game->probable_win[0] + $game->probable_win[1] > $random) {
++            $result = numberSlotResult(1, $request->choose);
++            $win    = 1;
++        } elseif ($game->probable_win[0] + $game->probable_win[1] + $game->probable_win[3] > $random) {
++            $result = numberSlotResult(2, $request->choose);
++            $win    = 2;
++        } else {
++            $result = numberSlotResult(3, $request->choose);
++            $win    = 3;
++        }
++
++        $invest = $this->invest($user, $request, $game, $result, $win);
++
++        $res['game_id'] = $invest['game_log']->id;
++        $res['number']  = $result;
++        $res['win']     = $win;
++        $res['balance'] = $user->balance;
++        return response()->json($res);
++    }
++
++    protected function gameEndTigerSlot($game, $request) {
++        $validator = $this->endValidation($request);
++
++        if ($validator->fails()) {
++            return response()->json(['errors' => $validator->errors()->all()]);
++        }
++
++        $user    = $this->player;
++        $gameLog = $this->runningGame($game, $request);
++
++        if (!$gameLog) {
++            return response()->json(['error' => 'Game Logs not found']);
++        }
++
++        $winner = 0;
++        $trx    = getTrx();
++
++        foreach ($game->level as $key => $data) {
++
++            if ($gameLog->win_status == $key + 1) {
++                $winBon = $gameLog->invest * $game->level[$key] / 100;
++                $amo    = $winBon;
++                $user->balance += $amo;
++                $user->save();
++
++                $gameLog->win_amo = $amo;
++                $gameLog->save();
++
++                $winner = 1;
++                $lev    = $key + 1;
++
++                $transaction               = new Transaction();
++                $transaction->user_id      = $user->id;
++                $transaction->amount       = $winBon;
++                $transaction->charge       = 0;
++                $transaction->trx_type     = '+';
++                $transaction->details      = $game->level[$key] . '% Win bonus of Tiger Luck Slot Game ' . $lev . ' Time';
++                $transaction->remark       = 'win_bonus';
++                $transaction->trx          = $trx;
++                $transaction->post_balance = $user->balance;
++                $transaction->save();
++            }
++
++        }
++
++        if ($winner == 1) {
++            $res['user_choose'] = $gameLog->user_select;
++            $res['message']     = 'Yahoo! You Win for ' . $gameLog->win_status . ' Time !!!';
++            $res['type']        = 'success';
++            $res['bal']         = $user->balance;
++        } else {
++            $res['user_choose'] = $gameLog->user_select;
++            $res['message']     = 'Oops! You Lost!!';
++            $res['type']        = 'danger';
++            $res['bal']         = $user->balance;
++        }
++
++        $gameLog->status = Status::ENABLE;
++        $gameLog->save();
++
++        return response()->json($res);
++    }
++
+     /*
+      * Pool Number
+      */
+@@ -714,7 +821,7 @@ protected function invest($user, $request, $game, $result, $win) {
+         $gameLog->user_id     = $user->id;
+         $gameLog->game_id     = $game->id;
+         $gameLog->user_select = $request->choose;
+-        $gameLog->result      = $game->alias == 'number_slot' ? json_encode($result) : $result;
++        $gameLog->result      = in_array($game->alias, ['number_slot', 'tiger_slot']) ? json_encode($result) : $result;
+         $gameLog->status      = 0;
+         $gameLog->win_status  = $win;
+         $gameLog->invest      = $request->invest;
+diff --git a/casino/frontend/src/App.tsx b/casino/frontend/src/App.tsx
+index 90fe815..8292d2a 100644
+--- a/casino/frontend/src/App.tsx
++++ b/casino/frontend/src/App.tsx
+@@ -96,7 +96,7 @@ function App() {
+     setSelectedGame(game)
+     setRoundMessage('')
+     setNumberGuessRoundId(null)
+-    setChoice(game.alias === 'number_slot' ? '7' : game.alias === 'number_pool' ? '1' : 'head')
++    setChoice(game.alias === 'number_slot' || game.alias === 'tiger_slot' ? '7' : game.alias === 'number_pool' ? '1' : 'head')
+   }
+ 
+   async function playGame() {
+@@ -109,12 +109,14 @@ function App() {
+         ? '/games/number_guess/invest'
+         : alias === 'number_slot'
+           ? '/games/number_slot/invest'
+-          : alias === 'number_pool'
+-            ? '/games/number_pool/invest'
+-            : `/games/${alias}/invest`
++          : alias === 'tiger_slot'
++            ? '/games/tiger_slot/invest'
++            : alias === 'number_pool'
++              ? '/games/number_pool/invest'
++              : `/games/${alias}/invest`
+       const body = alias === 'number_guess'
+         ? { userId: user.id, invest: stake }
+-        : alias === 'number_slot' || alias === 'number_pool'
++        : alias === 'number_slot' || alias === 'tiger_slot' || alias === 'number_pool'
+           ? { userId: user.id, invest: stake, choose: Number(choice) }
+           : { userId: user.id, invest: stake, userSelect: choice }
+       const { data } = await api.post(route, body)
+@@ -123,9 +125,11 @@ function App() {
+       if (alias !== 'number_guess') {
+         const settleRoute = alias === 'number_slot'
+           ? '/games/number_slot/settle'
+-          : alias === 'number_pool'
+-            ? '/games/number_pool/settle'
+-            : `/games/${alias}/settle`
++          : alias === 'tiger_slot'
++            ? '/games/tiger_slot/settle'
++            : alias === 'number_pool'
++              ? '/games/number_pool/settle'
++              : `/games/${alias}/settle`
+         await api.post(settleRoute, { userId: user.id, gameId: gameLogId })
+       }
+ 
+@@ -232,8 +236,9 @@ function App() {
+           <p>Escolha o valor da rodada e confirme para jogar.</p>
+           <label>Investimento<input type="number" min="0.01" step="0.01" value={stake} onChange={(event) => setStake(event.target.value)} /></label>
+           {selectedGame.alias === 'number_slot' && <label>Escolha um número (0-9)<input type="number" min="0" max="9" value={choice} onChange={(event) => setChoice(event.target.value)} /></label>}
++          {selectedGame.alias === 'tiger_slot' && <label>Escolha seu número da sorte (0-9)<input type="number" min="0" max="9" value={choice} onChange={(event) => setChoice(event.target.value)} /></label>}
+           {selectedGame.alias === 'number_pool' && <label>Escolha um número (1-8)<input type="number" min="1" max="8" value={choice} onChange={(event) => setChoice(event.target.value)} /></label>}
+-          {!['number_guess', 'number_slot', 'number_pool'].includes(selectedGame.alias ?? '') && <label>Escolha<input value={choice} onChange={(event) => setChoice(event.target.value)} placeholder="head, tail..." /></label>}
++          {!['number_guess', 'number_slot', 'tiger_slot', 'number_pool'].includes(selectedGame.alias ?? '') && <label>Escolha<input value={choice} onChange={(event) => setChoice(event.target.value)} placeholder="head, tail..." /></label>}
+           {roundMessage && <div className="form-error">{roundMessage}</div>}
+           {selectedGame.alias === 'number_guess' && numberGuessRoundId ? <>
+             <label>Seu palpite (1-100)<input type="number" min="1" max="100" value={guess} onChange={(event) => setGuess(event.target.value)} /></label>

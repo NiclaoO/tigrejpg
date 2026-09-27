@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" rx="16" fill="#1a1207"/>
+  <rect x="14" y="14" width="372" height="272" rx="12" fill="none" stroke="#f5a623" stroke-width="4"/>
+  <circle cx="200" cy="128" r="72" fill="#f5a623"/>
+  <circle cx="200" cy="128" r="58" fill="#2a1a05"/>
+  <text x="200" y="118" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="#f5a623">TIGER</text>
+  <text x="200" y="158" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="#ffffff">LUCK</text>
+  <text x="200" y="232" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#f5a623">7 &#8226; 7 &#8226; 7</text>
+  <text x="200" y="262" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#c9a86a">original slot &#8212; pick 0-9</text>
+</svg>
